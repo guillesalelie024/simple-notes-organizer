@@ -1,5 +1,5 @@
-import { addDoc, collection, deleteDoc, doc, getDocs, getDocsFromCache, initializeFirestore, persistentLocalCache, updateDoc } from 'firebase/firestore';
 import { initializeApp } from 'firebase/app';
+import { get, getDatabase, push, ref, remove, set } from 'firebase/database';
 
 export type NoteStatus = 'Important' | 'Normal';
 
@@ -13,14 +13,6 @@ export interface Note {
 }
 
 export type NoteDraft = Omit<Note, 'id'>;
-export const firebaseConfigured = Object.values({
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
-  appId: import.meta.env.VITE_FIREBASE_APP_ID,
-}).every(Boolean);
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -29,11 +21,13 @@ const firebaseConfig = {
   storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
   messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
   appId: import.meta.env.VITE_FIREBASE_APP_ID,
+  databaseURL: import.meta.env.VITE_FIREBASE_DATABASE_URL,
 };
 
-const hasFirebaseConfig = firebaseConfigured;
-const firebaseApp = hasFirebaseConfig ? initializeApp(firebaseConfig) : null;
-const db = firebaseApp ? initializeFirestore(firebaseApp, { localCache: persistentLocalCache() }) : null;
+export const firebaseConfigured = Object.values(firebaseConfig).every(Boolean);
+const app = firebaseConfigured ? initializeApp(firebaseConfig) : null;
+const database = app ? getDatabase(app) : null;
+const notesReference = database ? ref(database, 'notes') : null;
 const storageKey = 'simple-notes-organizer-notes';
 
 const readLocalNotes = (): Note[] => {
@@ -48,47 +42,34 @@ const readLocalNotes = (): Note[] => {
 const writeLocalNotes = (notes: Note[]) => localStorage.setItem(storageKey, JSON.stringify(notes));
 
 export async function listNotes(): Promise<Note[]> {
-  if (!db) return readLocalNotes();
-  try {
-    const cachedSnapshot = await getDocsFromCache(collection(db, 'notes'));
-    if (cachedSnapshot.docs.length) {
-      return cachedSnapshot.docs.map((item) => ({ id: item.id, ...item.data() } as Note));
-    }
-    const snapshot = await getDocs(collection(db, 'notes'));
-    const notes = snapshot.docs.map((item) => ({ id: item.id, ...item.data() } as Note));
-    writeLocalNotes(notes);
-    return notes;
-  } catch (error) {
-    const cachedNotes = readLocalNotes();
-    if (cachedNotes.length) return cachedNotes;
-    throw error;
-  }
+  if (!notesReference) return readLocalNotes();
+  const snapshot = await get(notesReference);
+  const data = snapshot.val() as Record<string, Note> | null;
+  const notes = data ? Object.entries(data).map(([id, note]) => ({ ...note, id })) : [];
+  writeLocalNotes(notes);
+  return notes;
 }
 
 export async function saveNote(note: NoteDraft, id?: string): Promise<Note> {
-  if (!db) {
+  if (!notesReference || !database) {
     const notes = readLocalNotes();
     const saved = { ...note, id: id ?? crypto.randomUUID() };
     writeLocalNotes(id ? notes.map((item) => item.id === id ? saved : item) : [saved, ...notes]);
     return saved;
   }
-  if (id) {
-    await updateDoc(doc(db, 'notes', id), note);
-    const saved = { ...note, id };
-    writeLocalNotes(readLocalNotes().map((item) => item.id === id ? saved : item));
-    return saved;
-  }
-  const created = await addDoc(collection(db, 'notes'), note);
-  const saved = { ...note, id: created.id };
-  writeLocalNotes([saved, ...readLocalNotes()]);
+
+  const noteReference = id ? ref(database, `notes/${id}`) : push(notesReference);
+  const saved = { ...note, id: noteReference.key as string };
+  await set(noteReference, note);
+  writeLocalNotes(id ? readLocalNotes().map((item) => item.id === id ? saved : item) : [saved, ...readLocalNotes()]);
   return saved;
 }
 
 export async function removeNote(id: string): Promise<void> {
-  if (!db) {
+  if (!notesReference || !database) {
     writeLocalNotes(readLocalNotes().filter((note) => note.id !== id));
     return;
   }
-  await deleteDoc(doc(db, 'notes', id));
+  await remove(ref(database, `notes/${id}`));
   writeLocalNotes(readLocalNotes().filter((note) => note.id !== id));
 }
