@@ -7,7 +7,7 @@
       </ion-toolbar>
     </ion-header>
     <ion-content class="ion-padding">
-      <form class="note-form" @submit.prevent="$emit('save', localForm)">
+      <form class="note-form" @submit.prevent="handleSave">
         <ion-input v-model="localForm.title" label="Title" label-placement="stacked" placeholder="Give it a name" required />
         <ion-textarea v-model="localForm.content" label="Content" label-placement="stacked" placeholder="Write what is on your mind" :auto-grow="true" required />
         <ion-select v-model="localForm.category" label="Category" label-placement="stacked" placeholder="Choose a category">
@@ -20,7 +20,8 @@
           <ion-select-option value="Normal">Normal</ion-select-option>
           <ion-select-option value="Important">Important</ion-select-option>
         </ion-select>
-        <ion-button type="submit" expand="block">{{ editingId ? 'Save changes' : 'Save note' }}</ion-button>
+        <p v-if="validationMessage" class="validation-message">{{ validationMessage }}</p>
+        <ion-button type="button" expand="block" @click="handleSave">{{ editingId ? 'Save changes' : 'Save note' }}</ion-button>
         <ion-button v-if="editingId" type="button" expand="block" fill="clear" color="danger" @click="$emit('delete')">Delete note</ion-button>
       </form>
     </ion-content>
@@ -28,18 +29,29 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, watch } from 'vue';
+import { reactive, ref, watch } from 'vue';
 import { IonButton, IonButtons, IonContent, IonHeader, IonInput, IonModal, IonSelect, IonSelectOption, IonTextarea, IonTitle, IonToolbar } from '@ionic/vue';
 import type { NoteDraft } from '../services/notes';
 
 const props = defineProps<{ isOpen: boolean; editingId?: string; modelValue: NoteDraft }>();
-defineEmits<{ close: []; save: [draft: NoteDraft]; delete: [] }>();
+const emit = defineEmits<{ close: []; save: [draft: NoteDraft]; delete: [] }>();
 const localForm = reactive<NoteDraft>({ ...props.modelValue });
+const validationMessage = ref('');
 
 watch(() => [props.isOpen, props.modelValue], () => Object.assign(localForm, props.modelValue), { deep: true });
+
+const handleSave = () => {
+  if (!localForm.title.trim() || !localForm.content.trim()) {
+    validationMessage.value = 'Title and content are required.';
+    return;
+  }
+  validationMessage.value = '';
+  emit('save', { ...localForm, title: localForm.title.trim(), content: localForm.content.trim() });
+};
 </script>
 
 <style scoped>
 ion-toolbar { --background: transparent; --color: var(--app-ink); }
 .note-form { display: grid; gap: 20px; padding-top: 16px; }
+.validation-message { color: var(--app-coral); font-size: 13px; margin: 0; }
 </style>
