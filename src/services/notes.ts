@@ -1,4 +1,4 @@
-import { addDoc, collection, deleteDoc, doc, getDocs, initializeFirestore, persistentLocalCache, updateDoc } from 'firebase/firestore';
+import { addDoc, collection, deleteDoc, doc, getDocs, initializeFirestore, persistentLocalCache, updateDoc, waitForPendingWrites } from 'firebase/firestore';
 import { initializeApp } from 'firebase/app';
 
 export type NoteStatus = 'Important' | 'Normal';
@@ -62,11 +62,13 @@ export async function saveNote(note: NoteDraft, id?: string): Promise<Note> {
   }
   if (id) {
     await updateDoc(doc(db, 'notes', id), note);
+    await waitForPendingWrites(db);
     const saved = { ...note, id };
     writeLocalNotes(readLocalNotes().map((item) => item.id === id ? saved : item));
     return saved;
   }
   const created = await addDoc(collection(db, 'notes'), note);
+  await waitForPendingWrites(db);
   const saved = { ...note, id: created.id };
   writeLocalNotes([saved, ...readLocalNotes()]);
   return saved;
@@ -78,5 +80,6 @@ export async function removeNote(id: string): Promise<void> {
     return;
   }
   await deleteDoc(doc(db, 'notes', id));
+  await waitForPendingWrites(db);
   writeLocalNotes(readLocalNotes().filter((note) => note.id !== id));
 }

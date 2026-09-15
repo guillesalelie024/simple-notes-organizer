@@ -8,7 +8,8 @@
       </main>
 
       <NoteEditor :is-open="isEditorOpen" :editing-id="editingId" :model-value="form" @close="closeEditor" @save="submitNote" @delete="deleteCurrentNote" />
-      <NotesToastComponents :is-open="Boolean(errorMessage)" :message="errorMessage" @close="errorMessage = ''" />
+      <NotesToastComponents :is-open="Boolean(successMessage)" :message="successMessage" color="success" @close="successMessage = ''" />
+      <NotesToastComponents :is-open="Boolean(errorMessage)" :message="errorMessage" color="danger" @close="errorMessage = ''" />
     </ion-content>
   </ion-page>
 </template>
@@ -30,6 +31,7 @@ const filter = ref('All');
 const isEditorOpen = ref(false);
 const editingId = ref<string>();
 const errorMessage = ref('');
+const successMessage = ref('');
 const form = reactive<NoteDraft>({ title: '', content: '', category: '', createdAt: new Date().toISOString(), status: 'Normal' });
 
 const filteredNotes = computed(() => notes.value.filter((note) => {
@@ -57,6 +59,7 @@ const deleteCurrentNote = async () => {
     await removeNote(editingId.value);
     notes.value = notes.value.filter((note) => note.id !== editingId.value);
     closeEditor();
+    successMessage.value = 'Note deleted successfully.';
   } catch (error) {
     errorMessage.value = `Could not delete note: ${getErrorMessage(error)}`;
   }
@@ -64,8 +67,10 @@ const deleteCurrentNote = async () => {
 const submitNote = async (draft: NoteDraft) => {
   try {
     const saved = await saveNote(draft, editingId.value);
+    const wasEditing = Boolean(editingId.value);
     notes.value = editingId.value ? notes.value.map((note) => note.id === saved.id ? saved : note) : [saved, ...notes.value];
     closeEditor();
+    successMessage.value = wasEditing ? 'Note updated successfully.' : 'Note saved successfully.';
   } catch (error) {
     errorMessage.value = `Could not save note: ${getErrorMessage(error)}`;
   }
