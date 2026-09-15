@@ -9,8 +9,14 @@
 </template>
 
 <script setup lang="ts">
-defineProps<{ isOpen: boolean; message: string; color?: 'success' | 'danger' }>();
-defineEmits<{ close: [] }>();
+import { watch } from 'vue';
+
+const emit = defineEmits<{ close: [] }>();
+const props = defineProps<{ isOpen: boolean; message: string; color?: 'success' | 'danger' }>();
+
+watch(() => props.isOpen, (isOpen) => {
+  if (isOpen) window.setTimeout(() => emit('close'), 2800);
+});
 </script>
 
 <style scoped>

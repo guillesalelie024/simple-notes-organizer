@@ -22,7 +22,7 @@ import NotesFiltersComponents from '../components/NotesFiltersComponents.vue';
 import NotesListComponents from '../components/NotesListComponents.vue';
 import NoteEditor from '../components/NoteEditorComponents.vue';
 import NotesToastComponents from '../components/NotesToastComponents.vue';
-import { listNotes, removeNote, saveNote, type Note, type NoteDraft, type NoteStatus } from '../services/notes';
+import { firebaseConfigured, listNotes, removeNote, saveNote, type Note, type NoteDraft, type NoteStatus } from '../services/notes';
 
 const notes = ref<Note[]>([]);
 const loading = ref(true);
@@ -59,7 +59,7 @@ const deleteCurrentNote = async () => {
     await removeNote(editingId.value);
     notes.value = notes.value.filter((note) => note.id !== editingId.value);
     closeEditor();
-    successMessage.value = 'Note deleted successfully.';
+    successMessage.value = firebaseConfigured ? 'Note deleted. Syncing with Firebase...' : 'Note deleted on this device.';
   } catch (error) {
     errorMessage.value = `Could not delete note: ${getErrorMessage(error)}`;
   }
@@ -70,7 +70,9 @@ const submitNote = async (draft: NoteDraft) => {
     const wasEditing = Boolean(editingId.value);
     notes.value = editingId.value ? notes.value.map((note) => note.id === saved.id ? saved : note) : [saved, ...notes.value];
     closeEditor();
-    successMessage.value = wasEditing ? 'Note updated successfully.' : 'Note saved successfully.';
+    successMessage.value = firebaseConfigured
+      ? `${wasEditing ? 'Note updated' : 'Note saved'}. Syncing with Firebase...`
+      : `${wasEditing ? 'Note updated' : 'Note saved'} on this device.`;
   } catch (error) {
     errorMessage.value = `Could not save note: ${getErrorMessage(error)}`;
   }
