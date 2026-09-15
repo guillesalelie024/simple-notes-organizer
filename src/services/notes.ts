@@ -1,4 +1,4 @@
-import { addDoc, collection, deleteDoc, doc, getDocs, getFirestore, updateDoc } from 'firebase/firestore';
+import { addDoc, collection, deleteDoc, doc, getDocs, initializeFirestore, persistentLocalCache, updateDoc } from 'firebase/firestore';
 import { initializeApp } from 'firebase/app';
 
 export type NoteStatus = 'Important' | 'Normal';
@@ -24,7 +24,8 @@ const firebaseConfig = {
 };
 
 const hasFirebaseConfig = Object.values(firebaseConfig).every(Boolean);
-const db = hasFirebaseConfig ? getFirestore(initializeApp(firebaseConfig)) : null;
+const firebaseApp = hasFirebaseConfig ? initializeApp(firebaseConfig) : null;
+const db = firebaseApp ? initializeFirestore(firebaseApp, { localCache: persistentLocalCache() }) : null;
 const storageKey = 'simple-notes-organizer-notes';
 
 const readLocalNotes = (): Note[] => {
