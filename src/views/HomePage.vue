@@ -4,7 +4,7 @@
     <ion-content>
       <main class="workspace">
         <NotesFiltersComponents v-model:search="search" v-model:filter="filter" :note-count="notes.length" />
-        <NotesListComponents :notes="filteredNotes" :loading="loading" @edit="editNote" @new-note="openNewNote" />
+        <NotesListComponents :notes="filteredNotes" :loading="loading" :search-active="Boolean(search.trim())" @edit="editNote" @new-note="openNewNote" />
       </main>
 
       <NoteEditor :is-open="isEditorOpen" :editing-id="editingId" :model-value="form" @close="closeEditor" @save="submitNote" @delete="deleteCurrentNote" />
@@ -59,7 +59,7 @@ const deleteCurrentNote = async () => {
     await removeNote(editingId.value);
     notes.value = notes.value.filter((note) => note.id !== editingId.value);
     closeEditor();
-    successMessage.value = firebaseConfigured ? 'Note deleted. Syncing with Firebase...' : 'Note deleted on this device.';
+    successMessage.value = firebaseConfigured ? 'Note deleted successfully.' : 'Note deleted on this device.';
   } catch (error) {
     errorMessage.value = `Could not delete note: ${getErrorMessage(error)}`;
   }
@@ -71,7 +71,7 @@ const submitNote = async (draft: NoteDraft) => {
     notes.value = editingId.value ? notes.value.map((note) => note.id === saved.id ? saved : note) : [saved, ...notes.value];
     closeEditor();
     successMessage.value = firebaseConfigured
-      ? `${wasEditing ? 'Note updated' : 'Note saved'}. Syncing with Firebase...`
+      ? `${wasEditing ? 'Note updated' : 'Note saved'} successfully.`
       : `${wasEditing ? 'Note updated' : 'Note saved'} on this device.`;
   } catch (error) {
     errorMessage.value = `Could not save note: ${getErrorMessage(error)}`;

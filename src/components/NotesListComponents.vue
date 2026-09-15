@@ -5,8 +5,8 @@
   </section>
   <section v-else class="empty-state">
     <ion-icon :icon="createOutline" />
-    <h2>No notes here yet</h2>
-    <p>Capture the next idea before it wanders off.</p>
+    <h2>{{ searchActive ? 'No notes found' : 'No notes here yet' }}</h2>
+    <p>{{ searchActive ? 'Try a different search term.' : 'Capture the next idea before it wanders off.' }}</p>
     <ion-button fill="outline" @click="$emit('new-note')">Create a note</ion-button>
   </section>
 </template>
@@ -17,7 +17,7 @@ import { createOutline } from 'ionicons/icons';
 import NoteCardComponents from './NoteCardComponents.vue';
 import type { Note } from '../services/notes';
 
-defineProps<{ notes: Note[]; loading: boolean }>();
+defineProps<{ notes: Note[]; loading: boolean; searchActive: boolean }>();
 defineEmits<{ edit: [note: Note]; 'new-note': [] }>();
 </script>
 
