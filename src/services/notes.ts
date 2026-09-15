@@ -29,15 +29,27 @@ const storageKey = 'simple-notes-organizer-notes';
 
 const readLocalNotes = (): Note[] => {
   const saved = localStorage.getItem(storageKey);
-  return saved ? JSON.parse(saved) : [];
+  try {
+    return saved ? JSON.parse(saved) : [];
+  } catch {
+    return [];
+  }
 };
 
 const writeLocalNotes = (notes: Note[]) => localStorage.setItem(storageKey, JSON.stringify(notes));
 
 export async function listNotes(): Promise<Note[]> {
   if (!db) return readLocalNotes();
-  const snapshot = await getDocs(collection(db, 'notes'));
-  return snapshot.docs.map((item) => ({ id: item.id, ...item.data() } as Note));
+  try {
+    const snapshot = await getDocs(collection(db, 'notes'));
+    const notes = snapshot.docs.map((item) => ({ id: item.id, ...item.data() } as Note));
+    writeLocalNotes(notes);
+    return notes;
+  } catch (error) {
+    const cachedNotes = readLocalNotes();
+    if (cachedNotes.length) return cachedNotes;
+    throw error;
+  }
 }
 
 export async function saveNote(note: NoteDraft, id?: string): Promise<Note> {
@@ -49,10 +61,14 @@ export async function saveNote(note: NoteDraft, id?: string): Promise<Note> {
   }
   if (id) {
     await updateDoc(doc(db, 'notes', id), note);
-    return { ...note, id };
+    const saved = { ...note, id };
+    writeLocalNotes(readLocalNotes().map((item) => item.id === id ? saved : item));
+    return saved;
   }
   const created = await addDoc(collection(db, 'notes'), note);
-  return { ...note, id: created.id };
+  const saved = { ...note, id: created.id };
+  writeLocalNotes([saved, ...readLocalNotes()]);
+  return saved;
 }
 
 export async function removeNote(id: string): Promise<void> {
@@ -61,4 +77,5 @@ export async function removeNote(id: string): Promise<void> {
     return;
   }
   await deleteDoc(doc(db, 'notes', id));
+  writeLocalNotes(readLocalNotes().filter((note) => note.id !== id));
 }
