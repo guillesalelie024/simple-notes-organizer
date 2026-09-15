@@ -35,7 +35,7 @@ jobs:
       # 3. Install project dependencies
       # ----------------------------------------------------------
       - name: Install npm dependencies
-        run: npm ci
+        run: npm ci --legacy-peer-deps
 
 
       # ----------------------------------------------------------
@@ -72,6 +72,12 @@ jobs:
           java -version
           javac -version
           echo "JAVA_HOME=$JAVA_HOME"
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          packages: 'platform-tools platforms;android-36 build-tools;35.0.0'
+          accept-android-sdk-licenses: true
 
 
       # ----------------------------------------------------------
