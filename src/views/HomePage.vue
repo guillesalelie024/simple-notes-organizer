@@ -8,6 +8,7 @@
       </main>
 
       <NoteEditor :is-open="isEditorOpen" :editing-id="editingId" :model-value="form" @close="closeEditor" @save="submitNote" @delete="deleteCurrentNote" />
+      <NotesToastComponents :is-open="Boolean(errorMessage)" :message="errorMessage" @close="errorMessage = ''" />
     </ion-content>
   </ion-page>
 </template>
@@ -19,6 +20,7 @@ import NotesHeaderComponents from '../components/NotesHeaderComponents.vue';
 import NotesFiltersComponents from '../components/NotesFiltersComponents.vue';
 import NotesListComponents from '../components/NotesListComponents.vue';
 import NoteEditor from '../components/NoteEditorComponents.vue';
+import NotesToastComponents from '../components/NotesToastComponents.vue';
 import { listNotes, removeNote, saveNote, type Note, type NoteDraft, type NoteStatus } from '../services/notes';
 
 const notes = ref<Note[]>([]);
@@ -27,6 +29,7 @@ const search = ref('');
 const filter = ref('All');
 const isEditorOpen = ref(false);
 const editingId = ref<string>();
+const errorMessage = ref('');
 const form = reactive<NoteDraft>({ title: '', content: '', category: '', createdAt: new Date().toISOString(), status: 'Normal' });
 
 const filteredNotes = computed(() => notes.value.filter((note) => {
@@ -36,15 +39,38 @@ const filteredNotes = computed(() => notes.value.filter((note) => {
 }));
 
 onMounted(async () => {
-  notes.value = await listNotes();
-  loading.value = false;
+  try {
+    notes.value = await listNotes();
+  } catch (error) {
+    errorMessage.value = `Could not load notes: ${getErrorMessage(error)}`;
+  } finally {
+    loading.value = false;
+  }
 });
 
 const openNewNote = () => { editingId.value = undefined; Object.assign(form, { title: '', content: '', category: '', status: 'Normal' }); isEditorOpen.value = true; };
 const editNote = (note: Note) => { editingId.value = note.id; Object.assign(form, note); isEditorOpen.value = true; };
 const closeEditor = () => { isEditorOpen.value = false; };
-const deleteCurrentNote = async () => { if (!editingId.value) return; await removeNote(editingId.value); notes.value = notes.value.filter((note) => note.id !== editingId.value); closeEditor(); };
-const submitNote = async (draft: NoteDraft) => { const saved = await saveNote(draft, editingId.value); notes.value = editingId.value ? notes.value.map((note) => note.id === saved.id ? saved : note) : [saved, ...notes.value]; closeEditor(); };
+const deleteCurrentNote = async () => {
+  if (!editingId.value) return;
+  try {
+    await removeNote(editingId.value);
+    notes.value = notes.value.filter((note) => note.id !== editingId.value);
+    closeEditor();
+  } catch (error) {
+    errorMessage.value = `Could not delete note: ${getErrorMessage(error)}`;
+  }
+};
+const submitNote = async (draft: NoteDraft) => {
+  try {
+    const saved = await saveNote(draft, editingId.value);
+    notes.value = editingId.value ? notes.value.map((note) => note.id === saved.id ? saved : note) : [saved, ...notes.value];
+    closeEditor();
+  } catch (error) {
+    errorMessage.value = `Could not save note: ${getErrorMessage(error)}`;
+  }
+};
+const getErrorMessage = (error: unknown) => error instanceof Error ? error.message : String(error);
 </script>
 
 <style scoped>
